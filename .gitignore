@@ -1,0 +1,6 @@
+.aider*
+.env
+.envrc
+venv
+bot_database.db
+.idea/
