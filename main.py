@@ -1,4 +1,6 @@
 import logging
+import os
+import yaml
 from datetime import datetime
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, \
@@ -12,6 +14,23 @@ logging.basicConfig(
     level=logging.INFO
 )
 
+
+# Load authorized users from config
+def load_authorized_users():
+    with open('config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+        return config.get('authorized_users', [])
+
+# Insert sentences from text file
+def insert_sentences_from_text(file_content):
+    sentences = [s.strip() for s in file_content.split('\n') if s.strip()]
+    conn = sqlite3.connect('bot_database.db')
+    cursor = conn.cursor()
+    for sentence in sentences:
+        cursor.execute('INSERT INTO sentences (sentence) VALUES (?)', (sentence,))
+    conn.commit()
+    conn.close()
+    return len(sentences)
 
 # Database initialization
 def init_db():
@@ -82,6 +101,38 @@ async def send_new_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Извините, все тексты уже озвучены!")
 
 
+async def insert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+    authorized_users = load_authorized_users()
+    
+    if user.username not in authorized_users:
+        await update.message.reply_text("У вас нет прав для использования этой команды.")
+        return
+    
+    await update.message.reply_text("Пожалуйста, отправьте текстовый файл с предложениями (по одному на строку).")
+    context.user_data['waiting_for_file'] = True
+
+async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.user_data.get('waiting_for_file'):
+        return
+    
+    document = update.message.document
+    if not document.file_name.endswith('.txt'):
+        await update.message.reply_text("Пожалуйста, отправьте файл в формате .txt")
+        return
+    
+    file = await context.bot.get_file(document.file_id)
+    file_content = await file.download_as_bytearray()
+    text_content = file_content.decode('utf-8')
+    
+    try:
+        sentences_count = insert_sentences_from_text(text_content)
+        await update.message.reply_text(f"Успешно добавлено {sentences_count} предложений в базу данных.")
+    except Exception as e:
+        await update.message.reply_text(f"Произошла ошибка при добавлении предложений: {str(e)}")
+    
+    context.user_data['waiting_for_file'] = False
+
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     voice = update.message.voice
     user = update.message.from_user
@@ -111,11 +162,13 @@ def main():
     init_db()
 
     # Initialize bot
-    application = Application.builder().token('').build()
+    application = Application.builder().token(os.getenv('BOT_TOKEN')).build()
 
     # Add handlers
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("insert", insert_command))
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))
+    application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
 
     # Start the bot
     application.run_polling(allowed_updates=Update.ALL_TYPES)
