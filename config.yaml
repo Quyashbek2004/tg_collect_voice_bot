@@ -2,3 +2,7 @@
 authorized_users:
   - AigizK
   - chemyshev
+
+notifications:
+  enabled: true
+  interval_hours: 24  # Set to 0 to disable

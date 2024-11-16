@@ -2,6 +2,7 @@ import logging
 import os
 import yaml
 from datetime import datetime, timedelta
+import asyncio
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, \
     ContextTypes
@@ -19,10 +20,13 @@ logging.basicConfig(
 
 
 # Load authorized users from config
-def load_authorized_users():
+def load_config():
     with open('config.yaml', 'r') as file:
-        config = yaml.safe_load(file)
-        return config.get('authorized_users', [])
+        return yaml.safe_load(file)
+
+def load_authorized_users():
+    config = load_config()
+    return config.get('authorized_users', [])
 
 # Insert sentences from text file
 def insert_sentences_from_text(file_content):
@@ -266,13 +270,61 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Пожалуйста, начните с команды /start")
 
 
+async def get_total_recordings():
+    conn = sqlite3.connect('bot_database.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM sentences WHERE audio_path IS NOT NULL')
+    total = cursor.fetchone()[0]
+    conn.close()
+    return total
+
+async def send_notification(context):
+    config = load_config()
+    notifications = config.get('notifications', {})
+    
+    if not notifications.get('enabled', False):
+        return
+    
+    interval_hours = notifications.get('interval_hours', 24)
+    if interval_hours <= 0:
+        return
+
+    application = context.application
+    # Get all users who have recordings
+    conn = sqlite3.connect('bot_database.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT DISTINCT author_id FROM sentences WHERE audio_path IS NOT NULL')
+    users = cursor.fetchall()
+    conn.close()
+
+    total_recordings = await get_total_recordings()
+
+    # Send notification to each user
+    for (user_id,) in users:
+        try:
+            user_stats = await get_user_stats(user_id)
+            message = (
+                f"📊 Статистика проекта:\n\n"
+                f"Всего собрано записей: {total_recordings}\n"
+                f"Вы записали: {user_stats[0]}\n\n"
+                f"Так держать! 💪\n"
+                f"Поможем еще? Нажми /start"
+            )
+            await application.bot.send_message(chat_id=user_id, text=message)
+        except Exception as e:
+            logging.error(f"Failed to send notification to user {user_id}: {e}")
+
 def main():
     # Initialize database
     init_db()
 
-    # Initialize bot
-    application = Application.builder().token(os.getenv('BOT_TOKEN')).build()
-
+    # Initialize bot with job queue
+    application = (
+        Application.builder()
+        .token(os.getenv('BOT_TOKEN'))
+        .build()
+    )
+    
     # Add handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("insert", insert_command))
@@ -280,6 +332,9 @@ def main():
     application.add_handler(CommandHandler("mystat", mystat_command))
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))
     application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+
+    # Start notification task
+    application.job_queue.run_repeating(send_notification, interval=timedelta(hours=0.5), first=10)
 
     # Start the bot
     application.run_polling(allowed_updates=Update.ALL_TYPES)
