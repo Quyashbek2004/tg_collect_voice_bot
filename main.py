@@ -1,7 +1,7 @@
 import logging
 import os
 import yaml
-from datetime import datetime
+from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, \
     ContextTypes
@@ -196,6 +196,52 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     context.user_data['waiting_for_file'] = False
 
+async def get_user_stats(user_id):
+    conn = sqlite3.connect('bot_database.db')
+    cursor = conn.cursor()
+    
+    # Get current date ranges
+    now = datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=now.weekday())
+    month_start = today_start.replace(day=1)
+    
+    # Get total count
+    cursor.execute('SELECT COUNT(*) FROM sentences WHERE author_id = ?', (user_id,))
+    total_count = cursor.fetchone()[0]
+    
+    # Get today's count
+    cursor.execute('SELECT COUNT(*) FROM sentences WHERE author_id = ? AND date >= ?', 
+                  (user_id, today_start.strftime('%Y-%m-%d %H:%M:%S')))
+    today_count = cursor.fetchone()[0]
+    
+    # Get week count
+    cursor.execute('SELECT COUNT(*) FROM sentences WHERE author_id = ? AND date >= ?', 
+                  (user_id, week_start.strftime('%Y-%m-%d %H:%M:%S')))
+    week_count = cursor.fetchone()[0]
+    
+    # Get month count
+    cursor.execute('SELECT COUNT(*) FROM sentences WHERE author_id = ? AND date >= ?', 
+                  (user_id, month_start.strftime('%Y-%m-%d %H:%M:%S')))
+    month_count = cursor.fetchone()[0]
+    
+    conn.close()
+    return total_count, today_count, week_count, month_count
+
+async def mystat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+    total, today, week, month = await get_user_stats(user.id)
+    
+    stats_message = (
+        f"📊 Ваша статистика озвученных предложений:\n\n"
+        f"Всего: {total}\n"
+        f"За сегодня: {today}\n"
+        f"За эту неделю: {week}\n"
+        f"За этот месяц: {month}"
+    )
+    
+    await update.message.reply_text(stats_message)
+
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     voice = update.message.voice
     user = update.message.from_user
@@ -231,6 +277,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("insert", insert_command))
     application.add_handler(CommandHandler("download", download_command))
+    application.add_handler(CommandHandler("mystat", mystat_command))
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))
     application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
 
