@@ -34,3 +34,19 @@ python main.py
 - Python 3.7+
 - python-telegram-bot
 - SQLite3 (included with Python)
+- PyYAML
+
+## Configuration
+
+Create a `config.yaml` file to specify authorized users who can:
+- Upload new sentences using the `/insert` command
+- Download recorded audio archive using the `/download` command
+
+Example config.yaml:
+```yaml
+authorized_users:
+  - username1
+  - username2
+```
+
+Replace `username1`, `username2` with actual Telegram usernames (without @ symbol).

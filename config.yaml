@@ -1,4 +1,4 @@
-# List of Telegram usernames that are allowed to use /insert command
+# List of Telegram usernames that are allowed to use /insert and /download commands
 authorized_users:
   - AigizK
   - chemyshev

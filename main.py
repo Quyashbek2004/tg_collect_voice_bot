@@ -7,6 +7,9 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, \
     ContextTypes
 import sqlite3
 import random
+import csv
+import zipfile
+import io
 
 # Enable logging
 logging.basicConfig(
@@ -30,6 +33,66 @@ def insert_sentences_from_text(file_content):
         cursor.execute('INSERT INTO sentences (sentence) VALUES (?)', (sentence,))
     conn.commit()
     conn.close()
+    return len(sentences)
+
+# Get all recorded sentences
+def get_recorded_sentences():
+    conn = sqlite3.connect('bot_database.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT sentence, audio_path, author, date 
+        FROM sentences 
+        WHERE audio_path IS NOT NULL
+    ''')
+    results = cursor.fetchall()
+    conn.close()
+    return results
+
+async def download_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+    authorized_users = load_authorized_users()
+    
+    if user.username not in authorized_users:
+        await update.message.reply_text("У вас нет прав для использования этой команды.")
+        return
+
+    # Get all recorded sentences
+    sentences = get_recorded_sentences()
+    if not sentences:
+        await update.message.reply_text("Пока нет записанных аудио.")
+        return
+
+    # Create ZIP buffer
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+        # Create and add metadata.csv
+        csv_buffer = io.StringIO()
+        csv_writer = csv.writer(csv_buffer)
+        csv_writer.writerow(['Text', 'Audio File', 'Author', 'Date'])
+        
+        # Download each audio file and add to ZIP
+        for i, (text, audio_path, author, date) in enumerate(sentences, 1):
+            # Get audio file
+            audio_file = await context.bot.get_file(audio_path)
+            audio_data = await audio_file.download_as_bytearray()
+            
+            # Add audio to ZIP
+            filename = f'audio_{i}.ogg'
+            zip_file.writestr(filename, audio_data)
+            
+            # Add metadata row
+            csv_writer.writerow([text, filename, author, date])
+        
+        # Add metadata.csv to ZIP
+        zip_file.writestr('metadata.csv', csv_buffer.getvalue())
+
+    # Send ZIP file
+    zip_buffer.seek(0)
+    await update.message.reply_document(
+        document=zip_buffer,
+        filename='voice_archive.zip',
+        caption='Архив с аудиозаписями и метаданными'
+    )
     return len(sentences)
 
 # Database initialization
@@ -167,6 +230,7 @@ def main():
     # Add handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("insert", insert_command))
+    application.add_handler(CommandHandler("download", download_command))
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))
     application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
 
