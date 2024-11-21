@@ -1,6 +1,7 @@
 import logging
 import os
 import yaml
+from pathlib import Path
 from datetime import datetime, timedelta
 import asyncio
 from telegram import Update
@@ -23,6 +24,21 @@ logging.basicConfig(
 def load_config():
     with open('config.yaml', 'r') as file:
         return yaml.safe_load(file)
+
+def load_localization(lang='ru'):
+    locale_path = Path('locales') / f'{lang}.yaml'
+    if not locale_path.exists():
+        locale_path = Path('locales') / 'en.yaml'
+    with open(locale_path, 'r', encoding='utf-8') as file:
+        return yaml.safe_load(file)
+
+def get_message(key, lang=None, **kwargs):
+    config = load_config()
+    if lang is None:
+        lang = config.get('default_language', 'en')
+    messages = load_localization(lang)
+    message = messages.get(key, messages.get('message_not_found', 'Message not found'))
+    return message.format(**kwargs) if kwargs else message
 
 def load_authorized_users():
     config = load_config()
@@ -57,13 +73,13 @@ async def download_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     authorized_users = load_authorized_users()
     
     if user.username not in authorized_users:
-        await update.message.reply_text("У вас нет прав для использования этой команды.")
+        await update.message.reply_text(get_message("no_permission"))
         return
 
     # Get all recorded sentences
     sentences = get_recorded_sentences()
     if not sentences:
-        await update.message.reply_text("Пока нет записанных аудио.")
+        await update.message.reply_text(get_message("no_recordings"))
         return
 
     # Create ZIP buffer
@@ -95,7 +111,7 @@ async def download_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_document(
         document=zip_buffer,
         filename='voice_archive.zip',
-        caption='Архив с аудиозаписями и метаданными'
+        caption=get_message("archive_caption")
     )
     return len(sentences)
 
@@ -154,9 +170,7 @@ def update_sentence(sentence_id, audio_path, author, author_id):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Send welcome message
-    await update.message.reply_text(
-        "Привет! Я бот для озвучки текстов. Я буду отправлять вам тексты, а вы должны их озвучить."
-    )
+    await update.message.reply_text(get_message('welcome'))
 
     # Send first task
     await send_new_task(update, context)
@@ -168,10 +182,10 @@ async def send_new_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sentence_id, sentence_text = sentence_data
         # Store the current sentence ID in user data
         context.user_data['current_sentence_id'] = sentence_id
-        message = f"<b>озвучьте этот текст и отправьте как аудиосообщение: </b>\n{sentence_text}"
+        message = get_message('voice_task', text=sentence_text)
         await update.message.reply_text(message, parse_mode='HTML')
     else:
-        await update.message.reply_text("Извините, все тексты уже озвучены!")
+        await update.message.reply_text(get_message('all_voiced'))
 
 
 async def insert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -179,10 +193,10 @@ async def insert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     authorized_users = load_authorized_users()
     
     if user.username not in authorized_users:
-        await update.message.reply_text("У вас нет прав для использования этой команды.")
+        await update.message.reply_text(get_message("no_permission"))
         return
     
-    await update.message.reply_text("Пожалуйста, отправьте текстовый файл с предложениями (по одному на строку).")
+    await update.message.reply_text(get_message("send_text_file"))
     context.user_data['waiting_for_file'] = True
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -191,7 +205,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     document = update.message.document
     if not document.file_name.endswith('.txt'):
-        await update.message.reply_text("Пожалуйста, отправьте файл в формате .txt")
+        await update.message.reply_text(get_message("wrong_file_format"))
         return
     
     file = await context.bot.get_file(document.file_id)
@@ -200,9 +214,9 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         sentences_count = insert_sentences_from_text(text_content)
-        await update.message.reply_text(f"Успешно добавлено {sentences_count} предложений в базу данных.")
+        await update.message.reply_text(get_message("sentences_added", count= sentences_count))
     except Exception as e:
-        await update.message.reply_text(f"Произошла ошибка при добавлении предложений: {str(e)}")
+        await update.message.reply_text(get_message("sentences_error", error= str(e)))
     
     context.user_data['waiting_for_file'] = False
 
@@ -243,11 +257,11 @@ async def mystat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total, today, week, month = await get_user_stats(user.id)
     
     stats_message = (
-        f"📊 Ваша статистика озвученных предложений:\n\n"
-        f"Всего: {total}\n"
-        f"За сегодня: {today}\n"
-        f"За эту неделю: {week}\n"
-        f"За этот месяц: {month}"
+        f'{get_message("stats_header")}'
+        f'{get_message("stats_total", count= total)}\n'
+        f'{get_message("stats_today", count= total)}\n'
+        f'{get_message("stats_week", count= total)}\n'
+        f'{get_message("stats_month", count= total)}'
     )
     
     await update.message.reply_text(stats_message)
@@ -270,10 +284,10 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Send confirmation and new task
         await update.message.reply_text(
-            "Спасибо за аудио! Вот следующее задание:")
+            get_message("thanks_next_task"))
         await send_new_task(update, context)
     else:
-        await update.message.reply_text("Пожалуйста, начните с команды /start")
+        await update.message.reply_text(get_message("please_start"))
 
 
 async def get_total_recordings():
@@ -322,13 +336,13 @@ async def send_notification(context):
     for (user_id,) in users:
         try:
             user_stats = await get_user_stats(user_id)
-            message = (
-                f"📊 Статистика проекта:\n\n"
-                f"Всего собрано записей: {total_recordings}\n"
-                f"Вы записали: {user_stats[0]}\n\n"
-                f"Так держать! 💪\n"
-                f"Поможем еще? Нажми /start"
-            )
+            # Get last notification time
+            cursor.execute('SELECT last_notification_time FROM notifications WHERE user_id = ?', (user_id,))
+            last_notif = cursor.fetchone()
+
+            message = get_message('notification_message', 
+                                total=total_recordings,
+                                user_total=user_stats[0])
             await application.bot.send_message(chat_id=user_id, text=message)
             
             # Update last notification time

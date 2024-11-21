@@ -3,6 +3,9 @@ authorized_users:
   - AigizK
   - chemyshev
 
+# Default language for messages
+default_language: "ba"
+
 notifications:
   enabled: true
   interval_hours: 24  # Set to 0 to disable

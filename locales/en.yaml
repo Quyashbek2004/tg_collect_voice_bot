@@ -1,0 +1,25 @@
+welcome: "Hi! I'm a text voiceover bot. I will send you texts, and you should voice them."
+voice_task: "<b>please voice this text and send it as a voice message: </b>\n{text}"
+all_voiced: "Sorry, all texts have already been voiced!"
+no_permission: "You don't have permission to use this command."
+send_text_file: "Please send a text file with sentences (one per line)."
+wrong_file_format: "Please send a .txt file"
+sentences_added: "Successfully added {count} sentences to the database."
+sentences_error: "An error occurred while adding sentences: {error}"
+no_recordings: "No voice recordings yet."
+archive_caption: "Archive with voice recordings and metadata"
+thanks_next_task: "Thanks for the audio! Here's your next task:"
+please_start: "Please start with the /start command"
+stats_header: "📊 Your voice recording statistics:\n\n"
+stats_total: "Total: {count}"
+stats_today: "Today: {count}"
+stats_week: "This week: {count}"
+stats_month: "This month: {count}"
+notification_message: |
+  📊 Project statistics:
+
+  Total recordings collected: {total}
+  You recorded: {user_total}
+
+  Keep it up! 💪
+  Want to help more? Press /start
