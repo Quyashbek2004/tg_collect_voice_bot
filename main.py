@@ -113,6 +113,12 @@ def init_db():
             date TEXT
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS notifications (
+            user_id INTEGER PRIMARY KEY,
+            last_notification_time TIMESTAMP
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -290,16 +296,29 @@ async def send_notification(context):
         return
 
     application = context.application
-    # Get all users who have recordings
+    current_time = datetime.now()
+    notification_threshold = current_time - timedelta(hours=interval_hours)
+
+    # Get all users who have recordings and haven't been notified recently
     conn = sqlite3.connect('bot_database.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT DISTINCT author_id FROM sentences WHERE audio_path IS NOT NULL')
+    cursor.execute('''
+        WITH user_recordings AS (
+            SELECT DISTINCT author_id
+            FROM sentences
+            WHERE audio_path IS NOT NULL
+        )
+        SELECT ur.author_id
+        FROM user_recordings ur
+        LEFT JOIN notifications n ON ur.author_id = n.user_id
+        WHERE n.last_notification_time IS NULL 
+        OR n.last_notification_time <= ?
+    ''', (notification_threshold,))
     users = cursor.fetchall()
-    conn.close()
 
     total_recordings = await get_total_recordings()
 
-    # Send notification to each user
+    # Send notification to each eligible user
     for (user_id,) in users:
         try:
             user_stats = await get_user_stats(user_id)
@@ -311,8 +330,18 @@ async def send_notification(context):
                 f"Поможем еще? Нажми /start"
             )
             await application.bot.send_message(chat_id=user_id, text=message)
+            
+            # Update last notification time
+            cursor.execute('''
+                INSERT OR REPLACE INTO notifications (user_id, last_notification_time)
+                VALUES (?, ?)
+            ''', (user_id, current_time))
+            
         except Exception as e:
             logging.error(f"Failed to send notification to user {user_id}: {e}")
+    
+    conn.commit()
+    conn.close()
 
 def main():
     # Initialize database
