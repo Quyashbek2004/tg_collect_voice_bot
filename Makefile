@@ -19,6 +19,8 @@ init:
 	echo "WorkingDirectory=$(PWD)" >> $(SERVICE_FILE)
 	echo "ExecStart=$(PWD)/$(VENV)/bin/python $(PWD)/main.py" >> $(SERVICE_FILE)
 	echo "Restart=always" >> $(SERVICE_FILE)
+	echo "RestartSec=10" >> $(SERVICE_FILE)
+	echo "StartLimitIntervalSec=0" >> $(SERVICE_FILE)
 	echo "" >> $(SERVICE_FILE)
 	echo "[Install]" >> $(SERVICE_FILE)
 	echo "WantedBy=default.target" >> $(SERVICE_FILE)
