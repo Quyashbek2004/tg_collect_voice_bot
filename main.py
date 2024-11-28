@@ -362,9 +362,10 @@ def main():
     init_db()
 
     # Initialize bot with job queue
+    config = load_config()
     application = (
         Application.builder()
-        .token(os.getenv('BOT_TOKEN'))
+        .token(config['bot_token'])
         .build()
     )
     

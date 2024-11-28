@@ -24,20 +24,34 @@ source venv/bin/activate
 
 2. Install required dependencies:
 ```bash
-pip install python-telegram-bot
+pip install -r requirements.txt
 ```
 
-3. Set your Telegram bot token as environment variable:
+3. Configure the bot by editing `config.yaml`:
+```yaml
+service_name: "voice_bot"  # Service name for systemd
+bot_token: "YOUR_BOT_TOKEN_HERE"  # Your Telegram bot token
+authorized_users:  # List of admin usernames
+  - username1
+  - username2
+default_language: "ba"  # Default bot language
+notifications:
+  enabled: true
+  interval_hours: 24
+```
+
+4. You can start the bot in two ways:
+
+Method 1 - Using Make (recommended):
 ```bash
-export BOT_TOKEN='your_bot_token_here'
+make init    # First time setup
+make start   # Start the bot
+make stop    # Stop the bot
+make restart # Restart the bot
+make logs    # View bot logs
 ```
 
-4. Initialize the database with sentences:
-```bash
-python insert_sentences.py
-```
-
-5. Start the bot:
+Method 2 - Manual start:
 ```bash
 python main.py
 ```
@@ -60,7 +74,7 @@ Example config.yaml:
 authorized_users:
   - username1
   - username2
-default_language: "en"  # Available: "en", "ru", "ba"
+default_language: "ba"  # Available: "ba", "en", "ru", "mhr"
 notifications:
   enabled: true
   interval_hours: 24
@@ -69,9 +83,10 @@ notifications:
 ## Localization
 
 The bot supports multiple languages:
+- Bashkir (ba)
 - English (en)
 - Russian (ru)
-- Bashkir (ba)
+- Mari (mhr)
 
 Language-specific messages are stored in YAML files in the `locales` directory. To add a new language:
 1. Create a new YAML file in `locales` directory (e.g., `de.yaml` for German)
@@ -101,7 +116,41 @@ Language-specific messages are stored in YAML files in the `locales` directory. 
 - `/insert` - Загрузка новых предложений из текстового файла (только для администраторов)
 - `/download` - Скачать архив всех записанных аудиофайлов с метаданными (только для администраторов)
 
-## Инструкции по установке
+## Инструкции по установке и запуску
+
+Есть два способа установки и запуска бота:
+
+### Способ 1 - Установка через Makefile (рекомендуется)
+
+Этот способ автоматически настраивает systemd-сервис для автозапуска бота:
+
+1. Настройте бота, отредактировав `config.yaml`:
+```yaml
+service_name: "voice_bot"  # Имя сервиса для systemd
+bot_token: "YOUR_BOT_TOKEN_HERE"  # Ваш токен Telegram бота
+authorized_users:  # Список администраторов
+  - username1
+  - username2
+default_language: "ba"  # Язык бота по умолчанию
+notifications:
+  enabled: true
+  interval_hours: 24
+```
+
+2. Выполните команды:
+```bash
+make init    # Первоначальная установка (создает venv, устанавливает зависимости и настраивает systemd)
+make start   # Запуск бота как systemd-сервис
+```
+
+Дополнительные команды для управления:
+```bash
+make stop    # Остановка бота
+make restart # Перезапуск бота
+make logs    # Просмотр логов
+```
+
+### Способ 2 - Ручная установка
 
 1. Создайте и активируйте виртуальное окружение:
 ```bash
@@ -111,23 +160,17 @@ source venv/bin/activate
 
 2. Установите необходимые зависимости:
 ```bash
-pip install python-telegram-bot
+pip install -r requirements.txt
 ```
 
-3. Установите токен вашего Telegram-бота как переменную окружения:
-```bash
-export BOT_TOKEN='ваш_токен_бота'
-```
+3. Настройте бота, отредактировав `config.yaml` как описано выше
 
-4. Инициализируйте базу данных с предложениями:
-```bash
-python insert_sentences.py
-```
-
-5. Запустите бота:
+4. Запустите бота вручную:
 ```bash
 python main.py
 ```
+
+При ручном запуске бот будет работать только пока активна сессия терминала. Для постоянной работы рекомендуется использовать Способ 1.
 
 ## Требования
 - Python 3.7+
@@ -147,7 +190,7 @@ python main.py
 authorized_users:
   - username1
   - username2
-default_language: "ru"  # Доступные: "en", "ru", "ba"
+default_language: "ba"  # Доступные: "ba", "en", "ru", "mhr"
 notifications:
   enabled: true
   interval_hours: 24
@@ -156,9 +199,10 @@ notifications:
 ## Локализация
 
 Бот поддерживает несколько языков:
-- Английский (en)
-- Русский (ru)
 - Башкирский (ba)
+- Русский (ru)
+- Марийский (mhr)
+- Английский (en)
 
 Сообщения для каждого языка хранятся в YAML-файлах в директории `locales`. Чтобы добавить новый язык:
 1. Создайте новый YAML-файл в директории `locales` (например, `de.yaml` для немецкого)

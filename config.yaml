@@ -1,3 +1,9 @@
+# Service configuration
+service_name: "voice_bot"
+
+# Telegram Bot Token
+bot_token: "YOUR_BOT_TOKEN_HERE"
+
 # List of Telegram usernames that are allowed to use /insert and /download commands
 authorized_users:
   - AigizK
