@@ -2,15 +2,16 @@
 service_name: "voice_bot"
 
 # Telegram Bot Token
-bot_token: "YOUR_BOT_TOKEN_HERE"
+bot_token: "7733878403:AAHfsoS7B7xYvepX-NYiIIQsyWTPYfZ3JuA"
 
 # List of Telegram usernames that are allowed to use /insert and /download commands
 authorized_users:
-  - AigizK
-  - chemyshev
+  - atabekm
+  - davron112
+  - quyashbek
 
 # Default language for messages
-default_language: "ba"
+default_language: "kar"
 
 notifications:
   enabled: true

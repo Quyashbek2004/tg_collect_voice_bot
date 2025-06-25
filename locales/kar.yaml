@@ -1,0 +1,25 @@
+welcome: "Sálem! Men tekstli dawıs beriwshi botpan. Men sizge tekstler jiberemen hám siz olarǵa dawıs beriń.."
+voice_task: "<b>bul tekstti dawıs penen jazıp, dawıslı xabar retinde jiberiń: </b>\n{text}"
+all_voiced: "Keshirersiz, barlıq tekstler álleqashan dawıslandı!"
+no_permission: "Bul buyrıqtan paydalanıw ushın sizge ruxsat berilmegen."
+send_text_file: "Gápli tekstli fayl jiberiń (hárbir qatarda birewden)."
+wrong_file_format: "Txt faylın jiberiń."
+sentences_added: "Derekqorģa {count} gáp kirgizildi."
+sentences_error: "Gáplerdi qosıwda qáte júz berdi: {error}"
+no_recordings: "Házirshe dawıs jazıw joq."
+archive_caption: "dawıs jazıwları hám metamaǵlıwmatlar menen arxivlew"
+thanks_next_task: "Audio ushın raxmet! Endigi wazıypańız:"
+please_start: "/start buyrıgı menen baslaw kerek"
+stats_header: "📊 Dawıs jazıw statistikası:\n\n"
+stats_total: "Jámi: {count}"
+stats_today: "búgin: {count}"
+stats_week: "Usı háptede: {count}"
+stats_month: "Usı ayda: {count}"
+notification_message: |
+  📊 Joybar statistikası:
+
+  Jámi jiynalgan jazıwlar: {total}
+  Siz jazdıńız: {user_total}
+
+  Sonday dawam etiń! 💪
+  Kóbirek járdem beriwdi qáleysiz be? Basıw /start
